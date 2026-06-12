@@ -8,7 +8,12 @@ import { fileURLToPath } from "node:url";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const workspaceRoot = resolve(__dirname, "..");
 const nestedPublicRoot = resolve(workspaceRoot, "sites", "remote-sensing-band-explorer", "public", "explorer");
-const publicRoot = existsSync(nestedPublicRoot) ? nestedPublicRoot : workspaceRoot;
+const standalonePublicRoot = resolve(workspaceRoot, "public");
+const publicRoot = existsSync(nestedPublicRoot)
+  ? nestedPublicRoot
+  : existsSync(resolve(standalonePublicRoot, "index.html"))
+    ? standalonePublicRoot
+    : workspaceRoot;
 const port = Number(readArg("--port") || process.env.PORT || 8070);
 const host = readArg("--host") || process.env.HOST || "127.0.0.1";
 

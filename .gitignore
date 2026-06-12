@@ -1,4 +1,7 @@
 node_modules/
+dist/
+.next/
+.wrangler/
 *.log
 *.err.log
 .env
