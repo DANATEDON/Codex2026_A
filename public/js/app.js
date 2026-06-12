@@ -20,7 +20,8 @@ const appState = {
   realBandValues: new Map(),
   pin: null,
   zoomPinAnchor: null,
-  isPinZoomRecentering: false
+  isPinZoomRecentering: false,
+  bandPreviewFocusKey: ""
 };
 
 const dom = {};
@@ -30,6 +31,7 @@ const SUMMARY_RAIL_WIDTH_STORAGE_KEY = "remoteSensingBandExplorer.summaryRailWid
 const SUMMARY_RAIL_MIN_WIDTH = 220;
 const SUMMARY_RAIL_MAX_WIDTH = 560;
 const SELECTED_SOURCE_OPEN_STORAGE_KEY = "remoteSensingBandExplorer.selectedSourceOpen";
+const BAND_PREVIEW_MIN_VISIBLE_ZOOM = 11;
 const BAND_OVERLAY_COLORS = ["#e63946", "#0077b6", "#f59f00", "#7b2cbf", "#2f9e44", "#d6336c", "#0ca678", "#495057"];
 const BAND_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const PLANETARY_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
@@ -169,6 +171,7 @@ function bindEvents() {
   dom.radiusKm.addEventListener("input", () => {
     const nextRadius = Number(dom.radiusKm.value) || 10;
     appState.radiusKm = Math.max(1, nextRadius);
+    appState.bandPreviewFocusKey = "";
     updateMetrics();
     updateRadiusCircle();
   });
@@ -312,6 +315,7 @@ function selectSource(sourceId) {
     appState.realSceneError = "";
     appState.realBandValues.clear();
     appState.mapFormulaName = "";
+    appState.bandPreviewFocusKey = "";
     setDefaultActiveBands(source);
     renderRealSceneStatus();
   }
@@ -905,6 +909,7 @@ function updateLeafletBandOverlays() {
 
   const center = overlayCenter();
   const activeBands = selectedActiveBands(source);
+  focusMapForBandPreview(source, center);
   activeBands.forEach(({ band, index }, activeIndex) => {
     const color = bandOverlayColor(index);
     const label = BAND_LABELS[index] || String(index + 1);
@@ -915,6 +920,7 @@ function updateLeafletBandOverlays() {
       L.tileLayer(realTileUrl, {
         opacity: appState.overlayOpacity,
         maxZoom: 24,
+        pane: "bandRasterPane",
         className: "band-raster-image",
         attribution: "Microsoft Planetary Computer"
       })
@@ -925,6 +931,7 @@ function updateLeafletBandOverlays() {
 
       L.imageOverlay(imageUrl, bounds, {
         opacity: clamp(appState.overlayOpacity * 0.82, 0.1, 0.95),
+        pane: "bandRasterPane",
         className: "band-raster-image",
         interactive: true
       })
@@ -935,6 +942,7 @@ function updateLeafletBandOverlays() {
         color,
         fill: false,
         opacity: clamp(appState.overlayOpacity, 0.18, 1),
+        pane: "bandRasterPane",
         weight: 1.5,
         dashArray: "6 5"
       })
@@ -944,6 +952,30 @@ function updateLeafletBandOverlays() {
     layer.addTo(appState.map);
     appState.bandOverlayLayers.set(band.id, layer);
   });
+}
+
+function focusMapForBandPreview(source, center) {
+  if (!appState.map || appState.realScene) {
+    return;
+  }
+
+  const focusKey = [
+    source.id,
+    center.lat.toFixed(5),
+    center.lng.toFixed(5),
+    appState.radiusKm
+  ].join("|");
+
+  if (appState.bandPreviewFocusKey === focusKey) {
+    return;
+  }
+
+  appState.bandPreviewFocusKey = focusKey;
+  if (appState.map.getZoom() < BAND_PREVIEW_MIN_VISIBLE_ZOOM) {
+    appState.map.setView([center.lat, center.lng], BAND_PREVIEW_MIN_VISIBLE_ZOOM, { animate: false });
+  } else {
+    appState.map.panTo([center.lat, center.lng], { animate: false });
+  }
 }
 
 function updateFallbackBandOverlays() {
@@ -1389,7 +1421,9 @@ function initMap() {
 
   appState.mapMode = "leaflet";
   const defaultCenter = [13.7563, 100.5018];
-  appState.map = L.map("map", { zoomControl: true }).setView(defaultCenter, 8);
+  appState.map = L.map("map", { zoomControl: true }).setView(defaultCenter, BAND_PREVIEW_MIN_VISIBLE_ZOOM);
+  appState.map.createPane("bandRasterPane");
+  appState.map.getPane("bandRasterPane").style.zIndex = 450;
   appState.baseLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap contributors"
@@ -1712,6 +1746,7 @@ function initFallbackMap(mapElement) {
 
 function setPin(lat, lng, fallbackPosition = null) {
   appState.pin = { lat, lng, ...fallbackPosition };
+  appState.bandPreviewFocusKey = "";
 
   if (appState.mapMode === "fallback") {
     updateFallbackPin();
