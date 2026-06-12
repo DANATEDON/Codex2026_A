@@ -34,8 +34,25 @@ const PLANETARY_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/
 const PLANETARY_DATA_URL = "https://planetarycomputer.microsoft.com/api/data/v1";
 const MAX_REAL_SCENE_CLOUD_COVER_PERCENT = 30;
 const REAL_SOURCE_CONFIG = {
+  "sentinel-1-grd": {
+    collection: "sentinel-1-grd",
+    sourceLabel: "Sentinel-1 GRD SAR",
+    assetForBand: {
+      vv: "vv",
+      vh: "vh",
+      hh: "hh",
+      hv: "hv"
+    },
+    defaultRescale: "-25,0",
+    colormap: "gray",
+    cloudFilter: false,
+    searchLimit: 50,
+    pendingNotice: "Catalog preview only until you load a real Sentinel-1 SAR scene. SAR is all-weather, so the cloud < 30% filter is not applied.",
+    activeNotice: "Real Sentinel-1 SAR Band tiles are active. VV/VH/HH/HV assets are read from the public Planetary Computer Data API."
+  },
   "sentinel-2-l2a": {
     collection: "sentinel-2-l2a",
+    sourceLabel: "Sentinel-2 MSI L2A",
     assetForBand: {
       B02: "B02",
       B03: "B03",
@@ -45,10 +62,15 @@ const REAL_SOURCE_CONFIG = {
       B12: "B12"
     },
     defaultRescale: "0,6000",
-    colormap: "viridis"
+    colormap: "viridis",
+    cloudFilter: true,
+    searchLimit: 20,
+    pendingNotice: `Mock preview only until you load a real Sentinel-2 scene with cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%.`,
+    activeNotice: "Real Sentinel-2 Band tiles are active. Values are read from the public Planetary Computer Data API."
   },
   "sentinel-2-msi": {
     collection: "sentinel-2-l2a",
+    sourceLabel: "Sentinel-2 MSI",
     assetForBand: {
       B1: "B01",
       B2: "B02",
@@ -65,7 +87,11 @@ const REAL_SOURCE_CONFIG = {
       B12: "B12"
     },
     defaultRescale: "0,6000",
-    colormap: "viridis"
+    colormap: "viridis",
+    cloudFilter: true,
+    searchLimit: 20,
+    pendingNotice: `Mock preview only until you load a real Sentinel-2 scene with cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%.`,
+    activeNotice: "Real Sentinel-2 Band tiles are active. Values are read from the public Planetary Computer Data API."
   }
 };
 
@@ -791,30 +817,34 @@ function renderRealSceneStatus() {
   dom.loadRealSceneButton.textContent = config ? "Load real scene" : "Real scene not available for this source";
 
   if (!source) {
-    dom.realDataNotice.textContent = "Select a source first. Real Band loading is currently available for Sentinel-2 MSI.";
+    dom.realDataNotice.textContent = "Select a source first. Real Band loading is available for Sentinel-1 GRD SAR and Sentinel-2 MSI.";
     dom.realDataNotice.className = "mock-data-notice";
     setRealSceneStatus("No source selected.", "alert");
     return;
   }
 
   if (!config) {
-    dom.realDataNotice.textContent = `${source.name} is showing catalog metadata only. Real tile support is currently wired for Sentinel-2 MSI.`;
+    dom.realDataNotice.textContent = `${source.name} is showing catalog metadata only. Real tile support is currently wired for Sentinel-1 GRD SAR and Sentinel-2 MSI.`;
     dom.realDataNotice.className = "mock-data-notice";
     setRealSceneStatus("No real scene endpoint configured for this source yet.", "alert");
     return;
   }
 
   if (!appState.realScene) {
-    dom.realDataNotice.textContent = `Mock preview only until you load a real Sentinel-2 scene with cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%.`;
+    dom.realDataNotice.textContent = config.pendingNotice;
     dom.realDataNotice.className = "mock-data-notice";
     setRealSceneStatus(appState.realSceneError || "No real scene loaded.", appState.realSceneError ? "error" : "neutral");
     return;
   }
 
-  const cloud = appState.realScene.cloudCover == null ? "cloud n/a" : `cloud ${Number(appState.realScene.cloudCover).toFixed(1)}%`;
-  dom.realDataNotice.textContent = "Real Sentinel-2 Band tiles are active. Values are read from the public Planetary Computer Data API.";
+  const constraint = config.cloudFilter === false
+    ? "SAR all-weather scene"
+    : appState.realScene.cloudCover == null
+      ? "cloud n/a"
+      : `cloud ${Number(appState.realScene.cloudCover).toFixed(1)}% (required < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%)`;
+  dom.realDataNotice.textContent = config.activeNotice;
   dom.realDataNotice.className = "mock-data-notice real-data-active";
-  setRealSceneStatus(`${appState.realScene.itemId} | ${formatDateTime(appState.realScene.datetime)} | ${cloud} (required < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%)`, "success");
+  setRealSceneStatus(`${appState.realScene.itemId} | ${formatDateTime(appState.realScene.datetime)} | ${constraint}`, "success");
 }
 
 function setRealSceneStatus(message, tone = "neutral") {
@@ -965,36 +995,14 @@ async function loadRealScene() {
   dom.loadRealSceneButton.disabled = true;
   dom.loadRealSceneButton.textContent = "Loading real scene...";
   appState.realSceneError = "";
-  setRealSceneStatus(`Searching public STAC catalog for cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%...`, "loading");
+  setRealSceneStatus(realSceneLoadingMessage(config), "loading");
 
   try {
+    const searchBody = buildRealSceneSearchBody(config, center, datetime);
     const response = await fetch(PLANETARY_STAC_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        collections: [config.collection],
-        intersects: {
-          type: "Point",
-          coordinates: [center.lng, center.lat]
-        },
-        datetime,
-        query: {
-          "eo:cloud_cover": {
-            lt: MAX_REAL_SCENE_CLOUD_COVER_PERCENT
-          }
-        },
-        sortby: [
-          {
-            field: "properties.eo:cloud_cover",
-            direction: "asc"
-          },
-          {
-            field: "properties.datetime",
-            direction: "desc"
-          }
-        ],
-        limit: 20
-      })
+      body: JSON.stringify(searchBody)
     });
 
     if (!response.ok) {
@@ -1002,9 +1010,9 @@ async function loadRealScene() {
     }
 
     const payload = await response.json();
-    const item = selectBestCloudFilteredScene(payload.features || []);
+    const item = selectBestRealScene(payload.features || [], config);
     if (!item) {
-      throw new Error(`No Sentinel-2 scene found with cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}% for this pin/date range. Try a wider date range or another pin.`);
+      throw new Error(noRealSceneMessage(config));
     }
 
     appState.realScene = {
@@ -1042,7 +1050,57 @@ async function loadRealScene() {
 }
 
 function selectBestCloudFilteredScene(features) {
-  return features
+  return selectBestRealScene(features, { cloudFilter: true, assetForBand: {} });
+}
+
+function buildRealSceneSearchBody(config, center, datetime) {
+  const body = {
+    collections: [config.collection],
+    intersects: {
+      type: "Point",
+      coordinates: [center.lng, center.lat]
+    },
+    datetime,
+    sortby: config.cloudFilter === false
+      ? [
+          {
+            field: "properties.datetime",
+            direction: "desc"
+          }
+        ]
+      : [
+          {
+            field: "properties.eo:cloud_cover",
+            direction: "asc"
+          },
+          {
+            field: "properties.datetime",
+            direction: "desc"
+          }
+        ],
+    limit: config.searchLimit || 20
+  };
+
+  if (config.cloudFilter !== false) {
+    body.query = {
+      "eo:cloud_cover": {
+        lt: MAX_REAL_SCENE_CLOUD_COVER_PERCENT
+      }
+    };
+  }
+
+  return body;
+}
+
+function selectBestRealScene(features, config) {
+  const candidates = features.filter((feature) => hasRenderableAsset(feature, config));
+
+  if (config.cloudFilter === false) {
+    return candidates
+      .sort((a, b) => new Date(b.properties?.datetime || 0) - new Date(a.properties?.datetime || 0))[0] || null;
+  }
+
+  return candidates
     .filter((feature) => isSceneBelowCloudLimit(feature))
     .sort((a, b) => {
       const cloudDiff = getSceneCloudCover(a) - getSceneCloudCover(b);
@@ -1051,6 +1109,29 @@ function selectBestCloudFilteredScene(features) {
       }
       return new Date(b.properties?.datetime || 0) - new Date(a.properties?.datetime || 0);
     })[0] || null;
+}
+
+function hasRenderableAsset(feature, config) {
+  const itemAssets = feature?.assets || {};
+  const renderableAssets = Object.values(config.assetForBand || {}).filter(Boolean);
+  if (!renderableAssets.length) {
+    return true;
+  }
+  return renderableAssets.some((asset) => Boolean(itemAssets[asset]));
+}
+
+function realSceneLoadingMessage(config) {
+  if (config.cloudFilter === false) {
+    return `Searching public STAC catalog for a real ${config.sourceLabel || config.collection} scene...`;
+  }
+  return `Searching public STAC catalog for cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}%...`;
+}
+
+function noRealSceneMessage(config) {
+  if (config.cloudFilter === false) {
+    return `No ${config.sourceLabel || config.collection} scene with renderable Band assets was found for this pin/date range. Try a wider date range or another pin.`;
+  }
+  return `No ${config.sourceLabel || config.collection} scene found with cloud cover < ${MAX_REAL_SCENE_CLOUD_COVER_PERCENT}% for this pin/date range. Try a wider date range or another pin.`;
 }
 
 function isSceneBelowCloudLimit(feature) {
