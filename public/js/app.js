@@ -34,6 +34,19 @@ const PLANETARY_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/
 const PLANETARY_DATA_URL = "https://planetarycomputer.microsoft.com/api/data/v1";
 const MAX_REAL_SCENE_CLOUD_COVER_PERCENT = 30;
 const REAL_SOURCE_CONFIG = {
+  "sentinel-2-l2a": {
+    collection: "sentinel-2-l2a",
+    assetForBand: {
+      B02: "B02",
+      B03: "B03",
+      B04: "B04",
+      B08: "B08",
+      B11: "B11",
+      B12: "B12"
+    },
+    defaultRescale: "0,6000",
+    colormap: "viridis"
+  },
   "sentinel-2-msi": {
     collection: "sentinel-2-l2a",
     assetForBand: {
@@ -289,8 +302,10 @@ function setDefaultActiveBands(source) {
 }
 
 function renderSourceCard(source) {
-  const bands = source.bands.slice(0, 8).map((band) => `${band.id} ${band.name}`);
-  const extraBandCount = Math.max(0, source.bands.length - bands.length);
+  const sourceBands = safeArray(source.bands);
+  const useCases = getSourceUseCases(source);
+  const bands = sourceBands.slice(0, 8).map((band) => `${band.id} ${band.name}`);
+  const extraBandCount = Math.max(0, sourceBands.length - bands.length);
   const selected = source.id === appState.selectedSourceId ? "Selected" : "Select Source";
   const cloudText = source.cloudIssue ? "Yes" : "No";
 
@@ -322,7 +337,7 @@ function renderSourceCard(source) {
       </div>
       <div>
         <p class="eyebrow">Recommended Use Cases</p>
-        <p>${escapeHtml(source.recommendedUseCases.join(", "))}</p>
+        <p>${escapeHtml(useCases.join(", ") || "Review provider workflow and limitations.")}</p>
       </div>
       <button class="secondary-button" type="button" data-select-source="${escapeHtml(source.id)}">${selected}</button>
     </article>
@@ -350,6 +365,9 @@ function renderDetails() {
   const notice = source.notes
     ? `<div class="notice">${escapeHtml(source.notes)}</div>`
     : "";
+  const suggestedIndices = getSourceSuggestedIndices(source);
+  const useCases = getSourceUseCases(source);
+  const sourceBands = safeArray(source.bands);
 
   dom.detailsPanel.innerHTML = `
     <section class="panel detail-main">
@@ -376,9 +394,9 @@ function renderDetails() {
         </div>
         <div>
           <p class="eyebrow">Suggested Indices</p>
-          <div class="chip-list">${source.suggestedIndices.map((index) => `<span class="chip">${escapeHtml(index)}</span>`).join("")}</div>
+          <div class="chip-list">${suggestedIndices.map((index) => `<span class="chip">${escapeHtml(index)}</span>`).join("") || '<span class="chip">No index listed</span>'}</div>
           <p class="eyebrow" style="margin-top:16px">Use Cases</p>
-          <div class="chip-list">${source.recommendedUseCases.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")}</div>
+          <div class="chip-list">${useCases.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("") || '<span class="chip">Review workflow notes</span>'}</div>
         </div>
       </div>
       <div>
@@ -387,10 +405,10 @@ function renderDetails() {
             <p class="eyebrow">Bands</p>
             <h2>Available Bands</h2>
           </div>
-          <span class="count-chip">${source.bands.length} bands</span>
+          <span class="count-chip">${sourceBands.length} bands</span>
         </div>
         <div class="detail-band-grid">
-          ${source.bands.map(renderBandCard).join("")}
+          ${sourceBands.map(renderBandCard).join("")}
         </div>
       </div>
     </section>
@@ -1744,6 +1762,24 @@ function metaItem(label, value) {
       <strong>${escapeHtml(String(value || "n/a"))}</strong>
     </div>
   `;
+}
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function getSourceSuggestedIndices(source) {
+  if (Array.isArray(source.suggestedIndices)) {
+    return source.suggestedIndices;
+  }
+  return safeArray(source.formulas).map((formula) => formula.name).filter(Boolean);
+}
+
+function getSourceUseCases(source) {
+  if (Array.isArray(source.recommendedUseCases)) {
+    return source.recommendedUseCases;
+  }
+  return safeArray(source.workflow).map((step) => String(step).replace(/\.$/, "")).filter(Boolean);
 }
 
 function parseInputDate(value) {
