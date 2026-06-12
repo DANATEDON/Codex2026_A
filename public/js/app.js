@@ -18,7 +18,9 @@ const appState = {
   realScene: null,
   realSceneError: "",
   realBandValues: new Map(),
-  pin: null
+  pin: null,
+  zoomPinAnchor: null,
+  isPinZoomRecentering: false
 };
 
 const dom = {};
@@ -1396,9 +1398,32 @@ function initMap() {
   appState.map.on("click", (event) => {
     setPin(event.latlng.lat, event.latlng.lng);
   });
+  appState.map.on("zoomstart", rememberPinZoomAnchor);
+  appState.map.on("zoomend", focusMapOnPinAfterZoom);
 
   updateBaseLayerVisibility();
   updateBandOverlays();
+}
+
+function rememberPinZoomAnchor() {
+  appState.zoomPinAnchor = appState.pin
+    ? { lat: appState.pin.lat, lng: appState.pin.lng }
+    : null;
+}
+
+function focusMapOnPinAfterZoom() {
+  if (!appState.map || !appState.zoomPinAnchor || appState.isPinZoomRecentering) {
+    return;
+  }
+
+  const anchor = appState.zoomPinAnchor;
+  appState.zoomPinAnchor = null;
+
+  appState.isPinZoomRecentering = true;
+  window.requestAnimationFrame(() => {
+    appState.map.panTo([anchor.lat, anchor.lng], { animate: false });
+    appState.isPinZoomRecentering = false;
+  });
 }
 
 function initSelectedSourceToggle() {
