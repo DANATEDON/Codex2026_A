@@ -1,0 +1,12 @@
+{
+  "name": "remote-sensing-band-explorer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve-explorer.mjs",
+    "dev": "node scripts/serve-explorer.mjs",
+    "explorer": "node scripts/serve-explorer.mjs",
+    "explorer:lan": "node scripts/serve-explorer.mjs --host 0.0.0.0 --port 8070"
+  }
+}

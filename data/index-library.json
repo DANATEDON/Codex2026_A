@@ -1,0 +1,135 @@
+{
+  "SO2_Anomaly": {
+    "formula": "SO2_current - SO2_baseline",
+    "bands": ["SO2_current", "SO2_baseline"],
+    "use_case": "Sulfur dioxide anomaly detection",
+    "sensors": {
+      "Sentinel-5P": {
+        "SO2": "sulfur_dioxide_total_vertical_column"
+      },
+      "OMI": {
+        "SO2": "SO2 column amount"
+      }
+    },
+    "limitations": "Satellite SO2 is a column amount, not direct ground-level concentration."
+  },
+  "SO2_Anomaly_Percent": {
+    "formula": "((SO2_current - SO2_baseline) / SO2_baseline) * 100",
+    "bands": ["SO2_current", "SO2_baseline"],
+    "use_case": "Relative sulfur dioxide increase comparison across regions",
+    "sensors": {
+      "Sentinel-5P": {
+        "SO2": "sulfur_dioxide_total_vertical_column"
+      },
+      "OMI": {
+        "SO2": "SO2 column amount"
+      }
+    },
+    "limitations": "Unstable when baseline SO2 is near zero."
+  },
+  "SO2_Zscore": {
+    "formula": "(SO2_current - mean_SO2_baseline) / std_SO2_baseline",
+    "bands": ["SO2_current", "mean_SO2_baseline", "std_SO2_baseline"],
+    "use_case": "Standardized sulfur dioxide hotspot detection",
+    "sensors": {
+      "Sentinel-5P": {
+        "SO2": "sulfur_dioxide_total_vertical_column"
+      }
+    },
+    "threshold": "Z >= 2 indicates anomaly; Z >= 3 indicates high anomaly",
+    "limitations": "Requires reliable baseline period and quality filtering."
+  },
+  "SO2_Hotspot": {
+    "formula": "SO2_current > mean_SO2_baseline + k * std_SO2_baseline",
+    "bands": ["SO2_current", "mean_SO2_baseline", "std_SO2_baseline"],
+    "use_case": "SO2 hotspot mask",
+    "sensors": {
+      "Sentinel-5P": {
+        "SO2": "sulfur_dioxide_total_vertical_column"
+      }
+    },
+    "threshold": "k = 2 or 3",
+    "limitations": "False positives may occur from volcanic plume, transport from other regions, retrieval noise, or cloud contamination."
+  },
+  "SO2_Exceedance_Ratio": {
+    "formula": "SO2_observed / SO2_standard",
+    "bands": ["SO2_observed", "SO2_standard"],
+    "use_case": "Compare observed SO2 against a health or regulatory standard",
+    "sensors": {
+      "GroundStation": {
+        "SO2": "near-surface SO2 concentration"
+      },
+      "ModeledNearSurfaceSO2": {
+        "SO2": "modeled near-surface SO2"
+      }
+    },
+    "threshold": "ratio > 1 indicates exceedance",
+    "limitations": "Use only when ground-level SO2 concentration or modeled near-surface SO2 is available."
+  },
+  "SO2_ppb_to_ug_m3": {
+    "formula": "SO2_ug_m3 = SO2_ppb * 64.066 / 24.45",
+    "bands": ["SO2_ppb"],
+    "use_case": "Convert SO2 ppb to microgram per cubic meter at 25 C and 1 atm",
+    "conversion": "SO2_ug_m3 ~= SO2_ppb * 2.62",
+    "limitations": "Temperature and pressure dependent conversion."
+  },
+  "SO2_ug_m3_to_ppb": {
+    "formula": "SO2_ppb = SO2_ug_m3 * 24.45 / 64.066",
+    "bands": ["SO2_ug_m3"],
+    "use_case": "Convert SO2 microgram per cubic meter to ppb at 25 C and 1 atm",
+    "conversion": "SO2_ppb ~= SO2_ug_m3 / 2.62",
+    "limitations": "Temperature and pressure dependent conversion."
+  },
+  "Sulfur_Pollution_Index": {
+    "formula": "0.6 * SO2_norm + 0.3 * AOD_norm + 0.1 * Stagnation_Index",
+    "bands": ["SO2", "AOD", "WindSpeed"],
+    "use_case": "Combined sulfur pollution risk mapping",
+    "sensors": {
+      "Sentinel-5P": {
+        "SO2": "sulfur_dioxide_total_vertical_column"
+      },
+      "MODIS": {
+        "AOD": "Aerosol Optical Depth"
+      },
+      "VIIRS": {
+        "AOD": "Aerosol Optical Depth"
+      },
+      "ERA5": {
+        "WindSpeed": "u10 and v10 wind components"
+      }
+    },
+    "interpretation": {
+      "0.00-0.30": "low sulfur pollution risk",
+      "0.31-0.60": "moderate risk",
+      "0.61-0.80": "high risk",
+      ">0.80": "very high risk"
+    },
+    "limitations": "This is a risk index, not a direct concentration measurement."
+  },
+  "Stagnation_Index": {
+    "formula": "if wind_speed < 1 then 1.0; else if wind_speed >= 1 and wind_speed < 3 then 0.6; else 0.2",
+    "bands": ["WindSpeed"],
+    "use_case": "Air stagnation risk term for Sulfur Pollution Index",
+    "sensors": {
+      "ERA5": {
+        "WindSpeed": "u10 and v10 wind components"
+      }
+    },
+    "limitations": "Low wind supports accumulation risk but does not identify pollutant source."
+  },
+  "Plume_Direction_Analysis": {
+    "formula": "SO2_hotspot_geometry + wind_speed + wind_direction",
+    "bands": ["SO2_hotspot", "WindSpeed", "WindDirection"],
+    "use_case": "Estimate sulfur plume movement and likely downwind impact direction",
+    "sensors": {
+      "Sentinel-5P": {
+        "SO2": "sulfur_dioxide_total_vertical_column"
+      },
+      "ERA5": {
+        "WindSpeed": "u10 and v10 wind components",
+        "WindDirection": "derived from u10 and v10"
+      }
+    },
+    "limitations": "Requires time-matched meteorology and careful source attribution."
+  }
+}

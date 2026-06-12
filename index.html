@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Remote Sensing Band Explorer</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="css/app.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Free Remote Sensing Catalog</p>
+          <h1>Remote Sensing Band Explorer</h1>
+        </div>
+        <div class="workflow-strip" aria-label="Main workflow">
+          <span>Date Range</span>
+          <span>Find Source</span>
+          <span>Show Sources</span>
+          <span>Show Bands</span>
+          <span>Select Source</span>
+          <span>Preview Details</span>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <aside class="summary-rail" aria-label="Current session summary">
+          <section class="panel map-tools-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Layers</p>
+                <h2>Map Layers</h2>
+              </div>
+            </div>
+            <div class="layer-list base-layer-list">
+              <label><input id="baseLayerToggle" type="checkbox" checked> OpenStreetMap Base</label>
+            </div>
+            <div class="formula-layer-panel">
+              <label>
+                <span>Formula / Index</span>
+                <select id="mapFormulaType"></select>
+              </label>
+              <div class="formula-map-preview">
+                <strong id="mapFormulaName">Manual Band layers</strong>
+                <code id="mapFormulaExpression">Use selected Bands</code>
+                <div id="mapFormulaBands" class="formula-band-list"></div>
+              </div>
+              <label class="range-control">
+                <span>Opacity <output id="overlayOpacityValue">72%</output></span>
+                <input id="overlayOpacitySlider" type="range" min="10" max="100" step="5" value="72">
+              </label>
+              <label class="range-control">
+                <span>Intensity <output id="overlayIntensityValue">100%</output></span>
+                <input id="overlayIntensitySlider" type="range" min="50" max="180" step="5" value="100">
+              </label>
+            </div>
+            <div class="band-layer-section">
+              <div id="realDataNotice" class="mock-data-notice">
+                Mock preview only. Click Load real scene to fetch real Sentinel-2 Band tiles and point values from scenes with cloud cover &lt; 30%.
+              </div>
+              <button id="loadRealSceneButton" class="primary-button" type="button">Load real scene</button>
+              <div id="realSceneStatus" class="real-scene-status">No real scene loaded.</div>
+              <div class="section-heading selected-source-heading">
+                <div>
+                  <p class="eyebrow">Selected Source</p>
+                  <h2 id="bandLayerSourceName">No source selected</h2>
+                </div>
+                <div class="selected-source-actions">
+                  <span id="bandLayerCount" class="count-chip">0 Bands</span>
+                  <button
+                    id="selectedSourceToggle"
+                    class="selected-source-toggle"
+                    type="button"
+                    aria-label="Toggle Selected Source"
+                    aria-controls="selectedSourceContent"
+                    aria-expanded="true"
+                    title="Toggle Selected Source"
+                  ></button>
+                </div>
+              </div>
+              <div id="selectedSourceContent" class="selected-source-content">
+                <div id="bandLayerList" class="band-layer-list">
+                  <p class="empty-copy">Select a source first, then turn Bands on or off here.</p>
+                </div>
+                <div class="band-values-section">
+                  <p class="eyebrow">Band Values At Pin</p>
+                  <div id="bandValueList" class="band-value-list">
+                    <p class="empty-copy">Load a real scene and click the map to read Band values.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="pin-readout">
+              <span>Pin</span>
+              <strong id="pinReadout">None</strong>
+            </div>
+            <div class="pin-readout">
+              <span>Radius</span>
+              <strong id="mapRadiusReadout">10 km</strong>
+            </div>
+          </section>
+        </aside>
+        <button
+          id="summaryRailResizeHandle"
+          class="summary-rail-resize-handle"
+          type="button"
+          aria-label="Drag to resize left panel"
+          title="Drag to resize left panel"
+        ></button>
+
+        <section class="workspace">
+          <nav class="tabs" aria-label="Application tabs">
+            <button class="tab-button active" type="button" data-tab="search">Search</button>
+            <button class="tab-button" type="button" data-tab="details">Source Details</button>
+            <button class="tab-button" type="button" data-tab="builder">Band / Index Builder</button>
+            <button class="tab-button" type="button" data-tab="map">Map Preview</button>
+            <button class="tab-button" type="button" data-tab="settings">Data / API Settings</button>
+          </nav>
+
+          <section id="tab-search" class="tab-panel active" aria-labelledby="Search">
+            <div class="split-layout">
+              <form id="searchForm" class="panel search-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Tab 1</p>
+                    <h2>Search / Date Range</h2>
+                  </div>
+                  <span id="searchState" class="status-pill neutral">Ready</span>
+                </div>
+
+                <label>
+                  <span>Start Date</span>
+                  <input id="startDate" type="date" required>
+                </label>
+                <label>
+                  <span>End Date</span>
+                  <input id="endDate" type="date" required>
+                </label>
+                <label>
+                  <span>Study Area Name</span>
+                  <input id="studyArea" type="text" placeholder="Optional">
+                </label>
+                <label>
+                  <span>Radius (km)</span>
+                  <input id="radiusKm" type="number" min="1" max="250" step="1" value="10">
+                </label>
+                <button id="findSourcesButton" class="primary-button" type="submit">
+                  Start / Find Source
+                </button>
+                <p id="validationMessage" class="form-message" role="status"></p>
+              </form>
+
+              <div class="panel result-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Free Sources</p>
+                    <h2>Search Results</h2>
+                  </div>
+                  <span id="resultCount" class="count-chip">0 found</span>
+                </div>
+                <div id="sourceResults" class="source-grid empty-state">
+                  <p>Enter a date range to list matching free sources.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-details" class="tab-panel" aria-labelledby="Source Details">
+            <div id="detailsPanel" class="details-layout">
+              <section class="panel detail-main">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Tab 2</p>
+                    <h2>Source Details</h2>
+                  </div>
+                  <span class="status-pill neutral">No source selected</span>
+                </div>
+                <p class="empty-copy">Select a source from the search results to preview details.</p>
+              </section>
+            </div>
+          </section>
+
+          <section id="tab-builder" class="tab-panel" aria-labelledby="Band / Index Builder">
+            <div class="builder-grid">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Tab 3</p>
+                    <h2>Band / Index Builder</h2>
+                  </div>
+                </div>
+                <label>
+                  <span>Source</span>
+                  <select id="builderSource"></select>
+                </label>
+                <label>
+                  <span>Formula Type</span>
+                  <select id="formulaType"></select>
+                </label>
+              </section>
+              <section class="panel formula-preview">
+                <p class="eyebrow">Formula Preview</p>
+                <h2 id="formulaName">No formula selected</h2>
+                <code id="formulaExpression">Select a formula</code>
+                <div id="formulaBands" class="chip-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="tab-map" class="tab-panel" aria-labelledby="Map Preview">
+            <div class="map-metric-strip" aria-label="Current map summary">
+              <div class="metric-tile">
+                <span class="metric-label">Sources</span>
+                <strong id="metricSources">0</strong>
+              </div>
+              <div class="metric-tile">
+                <span class="metric-label">Selected</span>
+                <strong id="metricSelected">None</strong>
+              </div>
+              <div class="metric-tile">
+                <span class="metric-label">Bands</span>
+                <strong id="metricBands">0</strong>
+              </div>
+              <div class="metric-tile">
+                <span class="metric-label">Radius</span>
+                <strong id="metricRadius">10 km</strong>
+              </div>
+            </div>
+            <div id="mapLayout" class="map-layout">
+              <section class="panel map-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Tab 4</p>
+                    <h2>Map Preview</h2>
+                  </div>
+                  <span id="pinStatus" class="status-pill neutral">No pin</span>
+                </div>
+                <div id="map"></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="tab-settings" class="tab-panel" aria-labelledby="Data / API Settings">
+            <section class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Tab 5</p>
+                  <h2>Data / API Settings</h2>
+                </div>
+              </div>
+              <div id="apiSettings" class="settings-grid"></div>
+            </section>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>

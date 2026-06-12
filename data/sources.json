@@ -1,0 +1,295 @@
+{
+  "signatureWindows": [
+    {
+      "id": "ch-1700",
+      "label": "C-H absorption near 1.70 um",
+      "minUm": 1.68,
+      "maxUm": 1.76,
+      "meaning": "Hydrocarbon-bearing materials can show absorption structure in this SWIR region. Broad multispectral bands are screening proxies only."
+    },
+    {
+      "id": "ch-2300",
+      "label": "C-H absorption near 2.30-2.35 um",
+      "minUm": 2.28,
+      "maxUm": 2.36,
+      "meaning": "This is a stronger diagnostic SWIR window for petroleum/hydrocarbon signatures. Narrow hyperspectral bands are preferred."
+    }
+  ],
+  "sources": [
+    {
+      "id": "sentinel-1-grd",
+      "name": "Sentinel-1 GRD SAR",
+      "provider": "ESA Copernicus / Microsoft Planetary Computer",
+      "sensor": "C-band Synthetic Aperture Radar",
+      "dataType": "SAR amplitude",
+      "spatialResolution": "About 10 m",
+      "temporalResolution": "6-12 days by orbit and location",
+      "availabilityStart": "2014-10-03",
+      "availabilityEnd": null,
+      "availabilityLabel": "2014-present",
+      "cloudIssue": false,
+      "freeAccess": true,
+      "accessMethod": "Open STAC search and open GRD assets; calibrated RTC processing may require a separate signed dataset",
+      "statusBadge": "Best water slick screen",
+      "statusTone": "recommended",
+      "liveSearch": true,
+      "renderable": true,
+      "collection": "sentinel-1-grd",
+      "defaultLeftBand": "vv",
+      "defaultRightBand": "vh",
+      "defaultRescale": "-25,0",
+      "colormap": "gray",
+      "searchLimit": 80,
+      "query": {
+        "sar:instrument_mode": {
+          "eq": "IW"
+        }
+      },
+      "hydrocarbonCapability": "Surface roughness proxy, not chemical identification",
+      "providerNote": "Uses real Sentinel-1 STAC items and open band assets. SAR can flag dark slick candidates on water, but wind, look angle, biological slicks, rain cells, and ship wakes must be checked.",
+      "notes": "Oil on water can damp capillary waves and appear as a dark spot in VV/VH backscatter. This is the best free all-weather first screen for large water-surface slicks, but it cannot chemically identify hydrocarbon.",
+      "bands": [
+        {"id": "vv", "asset": "vv", "name": "VV polarization", "wavelength": "C-band radar", "centerUm": null, "resolution": "About 10 m", "usage": "Primary dark-spot screening on water"},
+        {"id": "vh", "asset": "vh", "name": "VH polarization", "wavelength": "C-band radar", "centerUm": null, "resolution": "About 10 m", "usage": "Cross-polarized context and false-positive reduction"},
+        {"id": "hh", "asset": "hh", "name": "HH polarization", "wavelength": "C-band radar", "centerUm": null, "resolution": "About 10 m", "usage": "Co-pol channel where acquired"},
+        {"id": "hv", "asset": "hv", "name": "HV polarization", "wavelength": "C-band radar", "centerUm": null, "resolution": "About 10 m", "usage": "Cross-pol channel where acquired"}
+      ],
+      "formulas": [
+        {"name": "Adaptive VV Dark Spot", "purpose": "Candidate oil slick mask on open water", "expression": "VV_dB < mean(VV_water_AOI) - k * stdDev(VV_water_AOI)", "requiredBands": ["vv"], "threshold": "k usually 1.5-2.5"},
+        {"name": "VV/VH Contrast", "purpose": "Reduce false positives", "expression": "VV_dB - VH_dB or VV / VH after calibration", "requiredBands": ["vv", "vh"]}
+      ],
+      "workflow": [
+        "Water slick: use VV/VH dark spots first, then compare to wind, ship lanes, and adjacent dates.",
+        "Long-term confirmation: compare multiple orbit passes before and after the suspected incident.",
+        "Hydrocarbon type: SAR cannot separate oil chemistry; it only sees surface roughness damping."
+      ],
+      "limitations": [
+        "Low wind can create natural dark water that mimics oil.",
+        "Very small slicks below several pixels are not reliable at 10 m scale."
+      ]
+    },
+    {
+      "id": "sentinel-2-l2a",
+      "name": "Sentinel-2 MSI L2A",
+      "provider": "ESA Copernicus / Microsoft Planetary Computer",
+      "sensor": "MultiSpectral Instrument",
+      "dataType": "Optical multispectral",
+      "spatialResolution": "10 m visible/NIR, 20 m SWIR, 60 m atmospheric",
+      "temporalResolution": "About 5 days with Sentinel-2A/B",
+      "availabilityStart": "2015-06-23",
+      "availabilityEnd": null,
+      "availabilityLabel": "2015-present",
+      "cloudIssue": true,
+      "freeAccess": true,
+      "accessMethod": "Open STAC search and open COG tiles",
+      "statusBadge": "Best free optical",
+      "statusTone": "recommended",
+      "liveSearch": true,
+      "renderable": true,
+      "collection": "sentinel-2-l2a",
+      "defaultLeftBand": "B11",
+      "defaultRightBand": "B12",
+      "defaultRescale": "0,6000",
+      "colormap": "viridis",
+      "cloudProperty": "eo:cloud_cover",
+      "cloudMax": 35,
+      "searchLimit": 100,
+      "hydrocarbonCapability": "Optical/SWIR proxy, not definitive chemical ID",
+      "providerNote": "Uses real Sentinel-2 L2A STAC items and Planetary Computer rendered band tiles. Cloud, sunglint, turbid water, wet soil, and shadows need manual review.",
+      "notes": "Sentinel-2 is useful for water masks, visible slick sheen context, SWIR moisture/oil stain contrast on coast and land, and repeat optical checks.",
+      "bands": [
+        {"id": "B02", "asset": "B02", "name": "Blue", "wavelength": "490 nm", "centerUm": 0.49, "resolution": "10 m", "usage": "True color, haze, shallow water context"},
+        {"id": "B03", "asset": "B03", "name": "Green", "wavelength": "560 nm", "centerUm": 0.56, "resolution": "10 m", "usage": "Water mask and oil spill optical index"},
+        {"id": "B04", "asset": "B04", "name": "Red", "wavelength": "665 nm", "centerUm": 0.665, "resolution": "10 m", "usage": "Visible sheen and land/shore context"},
+        {"id": "B08", "asset": "B08", "name": "NIR", "wavelength": "842 nm", "centerUm": 0.842, "resolution": "10 m", "usage": "Water-land separation and vegetation/moisture context"},
+        {"id": "B11", "asset": "B11", "name": "SWIR 1", "wavelength": "1610 nm", "centerUm": 1.61, "resolution": "20 m", "usage": "Oil stain, moisture, cloud shadow, and shoreline contrast"},
+        {"id": "B12", "asset": "B12", "name": "SWIR 2", "wavelength": "2190 nm", "centerUm": 2.19, "resolution": "20 m", "usage": "SWIR ratio proxy close to hydrocarbon absorption region"}
+      ],
+      "formulas": [
+        {"name": "Water Mask NDWI", "purpose": "Separate water before slick screening", "expression": "(B03 - B08) / (B03 + B08)", "requiredBands": ["B03", "B08"]},
+        {"name": "Oil Spill Index", "purpose": "Visible optical anomaly on water", "expression": "(B03 + B04) / B02", "requiredBands": ["B02", "B03", "B04"]},
+        {"name": "NIR-SWIR Contrast", "purpose": "Water/slick and wet-stain contrast", "expression": "(B08 - B11) / (B08 + B11)", "requiredBands": ["B08", "B11"]},
+        {"name": "SWIR Ratio", "purpose": "Hydrocarbon/moisture proxy screening", "expression": "B11 / B12", "requiredBands": ["B11", "B12"]}
+      ],
+      "workflow": [
+        "Water slick: mask water with NDWI, inspect visible bands and SWIR ratio, then cross-check with Sentinel-1.",
+        "Land/shore/apron stain: compare B11/B12 and NIR/SWIR against pre-event scenes.",
+        "Long archive: use repeated cloud-free scenes from 2015-present for persistence and cleanup monitoring."
+      ],
+      "limitations": [
+        "10-20 m pixels cannot reliably see narrow stains, small sheens, or thin linear leaks.",
+        "Hydrocarbon signature is only a proxy because MSI does not have narrow 2.30-2.35 um bands."
+      ]
+    },
+    {
+      "id": "landsat-c2-l2",
+      "name": "Landsat 8/9 Collection 2 L2",
+      "provider": "USGS / NASA / Microsoft Planetary Computer",
+      "sensor": "OLI/TIRS",
+      "dataType": "Optical and thermal multispectral",
+      "spatialResolution": "30 m optical/SWIR, 100 m thermal",
+      "temporalResolution": "8-16 days with Landsat 8/9",
+      "availabilityStart": "2013-04-11",
+      "availabilityEnd": null,
+      "availabilityLabel": "2013-present",
+      "cloudIssue": true,
+      "freeAccess": true,
+      "accessMethod": "Open STAC search and open COG tiles",
+      "statusBadge": "Long archive",
+      "statusTone": "good",
+      "liveSearch": true,
+      "renderable": true,
+      "collection": "landsat-c2-l2",
+      "defaultLeftBand": "swir16",
+      "defaultRightBand": "swir22",
+      "defaultRescale": "7000,18000",
+      "colormap": "viridis",
+      "cloudProperty": "eo:cloud_cover",
+      "cloudMax": 45,
+      "searchLimit": 100,
+      "hydrocarbonCapability": "Long-term SWIR proxy and thermal context",
+      "providerNote": "Uses real Landsat Collection 2 Level-2 STAC items and Planetary Computer rendered band tiles. Best for larger features and long historical comparison.",
+      "notes": "Landsat is lower resolution than Sentinel-2 but has a strong long archive, SWIR bands, and thermal context for industrial/shoreline monitoring.",
+      "bands": [
+        {"id": "blue", "asset": "blue", "name": "Blue", "wavelength": "482 nm", "centerUm": 0.482, "resolution": "30 m", "usage": "True color and water clarity"},
+        {"id": "green", "asset": "green", "name": "Green", "wavelength": "561 nm", "centerUm": 0.561, "resolution": "30 m", "usage": "Water mask and visible oil index"},
+        {"id": "red", "asset": "red", "name": "Red", "wavelength": "655 nm", "centerUm": 0.655, "resolution": "30 m", "usage": "Visible context and OSI"},
+        {"id": "nir08", "asset": "nir08", "name": "NIR", "wavelength": "865 nm", "centerUm": 0.865, "resolution": "30 m", "usage": "Water-land separation and vegetation context"},
+        {"id": "swir16", "asset": "swir16", "name": "SWIR 1", "wavelength": "1609 nm", "centerUm": 1.609, "resolution": "30 m", "usage": "Moisture and oil-stain proxy contrast"},
+        {"id": "swir22", "asset": "swir22", "name": "SWIR 2", "wavelength": "2201 nm", "centerUm": 2.201, "resolution": "30 m", "usage": "SWIR ratio proxy close to hydrocarbon absorption region"},
+        {"id": "lwir11", "asset": "lwir11", "name": "Thermal IR", "wavelength": "10.9 um", "centerUm": 10.9, "resolution": "100 m", "usage": "Thermal context for large industrial surfaces"}
+      ],
+      "formulas": [
+        {"name": "Water Mask NDWI", "purpose": "Separate water before slick screening", "expression": "(green - nir08) / (green + nir08)", "requiredBands": ["green", "nir08"]},
+        {"name": "Oil Spill Index", "purpose": "Visible optical anomaly on water", "expression": "(green + red) / blue", "requiredBands": ["blue", "green", "red"]},
+        {"name": "NIR-SWIR Contrast", "purpose": "Water/slick and wet-stain contrast", "expression": "(nir08 - swir16) / (nir08 + swir16)", "requiredBands": ["nir08", "swir16"]},
+        {"name": "SWIR Ratio", "purpose": "Hydrocarbon/moisture proxy screening", "expression": "swir16 / swir22", "requiredBands": ["swir16", "swir22"]}
+      ],
+      "workflow": [
+        "Long-term hindsight: build monthly/annual scene stacks from 2013-present.",
+        "Large land/coast stains: inspect SWIR1/SWIR2 before-after change against basemap context.",
+        "Water slick: use as supporting evidence when slick is broad enough for 30 m pixels."
+      ],
+      "limitations": [
+        "30 m pixels are usually too coarse for small apron stains or narrow shoreline contamination.",
+        "Cloud/shadow and wet ground can mimic oil in SWIR."
+      ]
+    },
+    {
+      "id": "enmap-hsi",
+      "name": "EnMAP Hyperspectral",
+      "provider": "German Space Agency DLR",
+      "sensor": "EnMAP VNIR/SWIR imaging spectrometer",
+      "dataType": "Hyperspectral provider dataset",
+      "spatialResolution": "About 30 m",
+      "temporalResolution": "Tasked/revisit dependent",
+      "availabilityStart": "2022-11-02",
+      "availabilityEnd": null,
+      "availabilityLabel": "2022-present",
+      "cloudIssue": true,
+      "freeAccess": true,
+      "accessMethod": "EnMAP data portal / mission distribution; not wired to public tile rendering in this app",
+      "statusBadge": "Best signature",
+      "statusTone": "recommended",
+      "liveSearch": false,
+      "renderable": false,
+      "hydrocarbonCapability": "Direct narrow-band SWIR signature when an acquisition exists",
+      "providerNote": "This app lists real mission capability only. It does not synthesize EnMAP rasters or draw tiles without a live provider endpoint.",
+      "notes": "Hyperspectral SWIR is the right class of data for hydrocarbon signature work because it can sample narrow absorption features around 1.7 and 2.3 um.",
+      "hyperspectralCoverage": {"minUm": 0.42, "maxUm": 2.45},
+      "bands": [
+        {"id": "VNIR", "asset": null, "name": "VNIR cube", "wavelength": "0.42-1.00 um", "centerUm": null, "resolution": "About 30 m", "usage": "Visible/NIR material and water/vegetation context"},
+        {"id": "SWIR", "asset": null, "name": "SWIR cube", "wavelength": "0.90-2.45 um", "centerUm": null, "resolution": "About 30 m", "usage": "Hydrocarbon absorption and material discrimination"}
+      ],
+      "formulas": [
+        {"name": "Continuum-Removed Hydrocarbon Feature", "purpose": "Confirm absorption shape around C-H windows", "expression": "1 - reflectance_at_absorption / continuum_reflectance", "requiredBands": ["SWIR narrow bands around 1.7 um or 2.3 um"]}
+      ],
+      "workflow": [
+        "Hydrocarbon signature: use continuum removal near 1.7 and 2.3 um on calibrated reflectance.",
+        "Use with Sentinel/Landsat: find candidate areas first, then validate with hyperspectral acquisition."
+      ],
+      "limitations": [
+        "Coverage is not continuous everywhere and may require ordering or portal access.",
+        "30 m pixels still mix small stains with surrounding surface."
+      ]
+    },
+    {
+      "id": "prisma-hsi",
+      "name": "PRISMA Hyperspectral",
+      "provider": "Italian Space Agency ASI",
+      "sensor": "PRISMA VNIR/SWIR imaging spectrometer",
+      "dataType": "Hyperspectral provider dataset",
+      "spatialResolution": "About 30 m hyperspectral, 5 m panchromatic",
+      "temporalResolution": "Tasked/revisit dependent",
+      "availabilityStart": "2019-03-22",
+      "availabilityEnd": null,
+      "availabilityLabel": "2019-present",
+      "cloudIssue": true,
+      "freeAccess": false,
+      "accessMethod": "ASI PRISMA portal / licensed distribution; not wired to public tile rendering in this app",
+      "statusBadge": "Signature capable",
+      "statusTone": "good",
+      "liveSearch": false,
+      "renderable": false,
+      "hydrocarbonCapability": "Direct narrow-band SWIR signature when licensed imagery exists",
+      "providerNote": "This app lists real mission capability only. No PRISMA image is drawn unless a real provider endpoint is connected.",
+      "notes": "PRISMA is well suited to hydrocarbon spectral work when access and cloud-free coverage exist.",
+      "hyperspectralCoverage": {"minUm": 0.4, "maxUm": 2.5},
+      "bands": [
+        {"id": "VNIR", "asset": null, "name": "VNIR cube", "wavelength": "0.4-1.0 um", "centerUm": null, "resolution": "About 30 m", "usage": "Visible/NIR material context"},
+        {"id": "SWIR", "asset": null, "name": "SWIR cube", "wavelength": "0.9-2.5 um", "centerUm": null, "resolution": "About 30 m", "usage": "Hydrocarbon absorption and material discrimination"},
+        {"id": "PAN", "asset": null, "name": "Panchromatic", "wavelength": "Visible/NIR pan", "centerUm": null, "resolution": "About 5 m", "usage": "Spatial context and sharpening support"}
+      ],
+      "formulas": [
+        {"name": "Hydrocarbon Absorption Depth", "purpose": "Material signature confirmation", "expression": "continuum_removed_depth at 1.7 um and 2.3 um windows", "requiredBands": ["SWIR narrow bands"]}
+      ],
+      "workflow": [
+        "Use Sentinel-1/Sentinel-2/Landsat to locate candidate stains.",
+        "Acquire cloud-free PRISMA scene and run spectral matching against field or library spectra."
+      ],
+      "limitations": [
+        "Not an always-on global basemap source.",
+        "Licensing and access may limit operational use."
+      ]
+    },
+    {
+      "id": "worldview-3-swir",
+      "name": "WorldView-3 Visible/NIR/SWIR",
+      "provider": "Maxar commercial imagery",
+      "sensor": "WorldView-3 multispectral and SWIR",
+      "dataType": "Commercial high-resolution optical/SWIR",
+      "spatialResolution": "About 0.3 m pan, 1.2 m VNIR, 3.7 m SWIR",
+      "temporalResolution": "Tasked/commercial archive dependent",
+      "availabilityStart": "2014-08-13",
+      "availabilityEnd": null,
+      "availabilityLabel": "2014-present",
+      "cloudIssue": true,
+      "freeAccess": false,
+      "accessMethod": "Maxar commercial order/API; not wired to public tile rendering in this app",
+      "statusBadge": "Best small stain",
+      "statusTone": "limited",
+      "liveSearch": false,
+      "renderable": false,
+      "hydrocarbonCapability": "High spatial detail with SWIR proxy bands",
+      "providerNote": "This app does not draw commercial imagery without a licensed provider endpoint. It records the real sensor option for apron/shoreline stains that are too small for free 10-30 m data.",
+      "notes": "WorldView-3 is the practical option when the target is an apron spill, tank-farm stain, narrow shoreline strip, or small land contamination patch.",
+      "bands": [
+        {"id": "PAN", "asset": null, "name": "Panchromatic", "wavelength": "Visible pan", "centerUm": null, "resolution": "About 0.3 m", "usage": "Small stain shape and site context"},
+        {"id": "VNIR", "asset": null, "name": "VNIR multispectral", "wavelength": "Visible/NIR bands", "centerUm": null, "resolution": "About 1.2 m", "usage": "Surface color and context"},
+        {"id": "SWIR", "asset": null, "name": "SWIR multispectral", "wavelength": "SWIR bands to about 2.33 um", "centerUm": null, "resolution": "About 3.7 m", "usage": "Hydrocarbon and moisture proxy contrast at operational site scale"}
+      ],
+      "formulas": [
+        {"name": "Before-After SWIR Change", "purpose": "Small surface stain screening", "expression": "SWIR_current - SWIR_baseline, normalized by unchanged reference surfaces", "requiredBands": ["SWIR"]}
+      ],
+      "workflow": [
+        "Airport apron/industrial yard: use high-resolution pan/VNIR for shape and SWIR for material contrast.",
+        "Confirm with repeat tasked imagery and site photos or sampling.",
+        "Use free sensors first only for large context; they are usually too coarse for small spills."
+      ],
+      "limitations": [
+        "Commercial licensing is required.",
+        "SWIR is still multispectral, not full hyperspectral chemistry."
+      ]
+    }
+  ]
+}
